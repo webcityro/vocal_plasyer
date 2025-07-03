@@ -309,15 +309,8 @@ body {
 .volume-slider {
     display: flex;
     align-items: center;
-    opacity: 0;
-    transition: opacity 0.2s ease;
-    width: 0;
-    overflow: hidden;
-}
-
-.controls-right:hover .volume-slider {
-    opacity: 1;
     width: 70px;
+    overflow: hidden;
 }
 
 .volume-range {

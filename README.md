@@ -1,9 +1,11 @@
-# Vocal Player - Vue.js Version
+# Vocal Player
 
-A video player application built with Vue.js 3 and Electron, featuring subtitle support and a modern UI.
+A modern video player built with Vue.js 3 and Electron, featuring subtitle support, a modern UI, and the ability to read subtitles out loud using text-to-speech (TTS).
 
+Build for those who can't or don't want to read subtitles, this player uses your system's Romanian voice to automatically speak subtitle lines, making videos more accessible.
 ## Features
 
+- **Reads subtitles out loud (TTS)**: Automatically speaks subtitle lines using your system's Romanian voice, making videos accessible for those who can't or don't want to read subtitles.
 - Video playback with support for multiple formats (MP4, AVI, MKV, MOV, WMV, FLV, WebM, M4V)
 - Subtitle support (SRT, VTT, ASS, SSA, SUB)
 - Modern, responsive UI with hover effects
@@ -44,45 +46,13 @@ This will start both the Vite development server and Electron app concurrently.
 - `npm run preview` - Preview the built web version
 - `npm start` - Start the Electron app (requires built files)
 
-## Project Structure
-
-```
-vocal_player/
-├── src/
-│   ├── App.vue          # Main Vue component
-│   ├── main.js          # Vue app entry point
-│   ├── index.html       # HTML template
-│   └── player.css       # Styles
-├── main.js              # Electron main process
-├── package.json         # Dependencies and scripts
-├── vite.config.js       # Vite configuration
-└── README.md           # This file
-```
-
-## Technology Stack
-
-- **Frontend**: Vue.js 3 with Composition API
-- **Build Tool**: Vite
-- **Desktop**: Electron
-- **Styling**: CSS3 with modern features
-- **File Handling**: Electron dialog API with fallback to HTML file input
-
-## Migration from Vanilla JS
-
-This project was converted from a vanilla JavaScript implementation to Vue.js 3. Key changes:
-
-1. **Component-based architecture**: All functionality is now contained in a single Vue component
-2. **Reactive state management**: Using Vue's reactive system instead of manual DOM manipulation
-3. **Event handling**: Vue event system instead of addEventListener
-4. **Template syntax**: Vue template syntax for conditional rendering and data binding
-5. **Computed properties**: For derived state like progress percentage and formatted time
-
-## Building for Production
+## Compiling the application
 
 To build the application for distribution:
 
 ```bash
 npm run build
+npm run dist
 ```
 
 This will:

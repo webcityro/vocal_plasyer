@@ -2,7 +2,6 @@ const { app, BrowserWindow, dialog, ipcMain } = require('electron');
 const path = require('path');
 const fs = require('fs');
 
-// Initialize remote module if available
 let remote;
 try {
   require('@electron/remote/main').initialize();
@@ -12,7 +11,6 @@ try {
 }
 
 function createWindow() {
-  // Create the browser window.
   const win = new BrowserWindow({
     width: 1200,
     height: 800,
@@ -22,29 +20,25 @@ function createWindow() {
       preload: path.join(__dirname, '../preload/index.js'),
       webSecurity: false, // Allow loading local files
     },
+    zoomToPageWidth: true,
+    autoHideMenuBar: true,
   });
 
-  // Enable remote module for this window if available
   if (remote) {
     remote.enable(win.webContents);
   }
 
-  // Load the app
+  console.log('environment:', process.env.NODE_ENV);
   if (process.env.NODE_ENV === 'development') {
-    // In development, load from electron-vite dev server
     win.loadURL('http://localhost:5173');
-    // Open the DevTools.
     win.webContents.openDevTools();
   } else {
-    // In production, load the built files
-    win.loadFile(path.join(__dirname, '../renderer/index.html'));
+    win.loadFile(path.join(__dirname, '../../out/renderer/index.html'));
   }
 }
 
 function srtToVtt(srtContent) {
-  // Add WEBVTT header
   let vtt = 'WEBVTT\n\n';
-  // Remove sequence numbers and convert commas to periods in timestamps
   vtt += srtContent
     .replace(/\r/g, '')
     .split('\n')
@@ -54,11 +48,9 @@ function srtToVtt(srtContent) {
   return vtt;
 }
 
-// Handle file dialog requests
 ipcMain.handle('show-open-dialog', async (event, options) => {
   try {
-    const result = await dialog.showOpenDialog(options);
-    return result;
+    return await dialog.showOpenDialog(options);
   } catch (error) {
     console.error('Error showing open dialog:', error);
     return { canceled: true, filePaths: [] };
@@ -67,23 +59,18 @@ ipcMain.handle('show-open-dialog', async (event, options) => {
 
 ipcMain.handle('show-save-dialog', async (event, options) => {
   try {
-    const result = await dialog.showSaveDialog(options);
-    return result;
+    return await dialog.showSaveDialog(options);
   } catch (error) {
     console.error('Error showing save dialog:', error);
     return { canceled: true, filePath: '' };
   }
 });
 
-// Handle file loading requests
 ipcMain.handle('load-video-file', async (event, filePath) => {
   try {
     console.log('Main process: Loading video file:', filePath);
-    // Check if file exists
     if (fs.existsSync(filePath)) {
-      // Convert to proper file:// URL with proper encoding
       const normalizedPath = path.normalize(filePath);
-      // Use encodeURI to properly encode the file path
       const encodedPath = encodeURI(normalizedPath.replace(/\\/g, '/'));
       const fileUrl = `file:///${encodedPath}`;
       console.log('Main process: Generated file URL:', fileUrl);
@@ -103,13 +90,10 @@ ipcMain.handle('load-subtitle-file', async (event, filePath) => {
     if (fs.existsSync(filePath)) {
       const ext = path.extname(filePath).toLowerCase();
       if (ext === '.srt') {
-        // Convert SRT to VTT and serve as data URL
         const srtContent = fs.readFileSync(filePath, 'utf8');
         const vttContent = srtToVtt(srtContent);
-        const dataUrl = 'data:text/vtt;charset=utf-8,' + encodeURIComponent(vttContent);
-        return dataUrl;
+        return 'data:text/vtt;charset=utf-8,' + encodeURIComponent(vttContent);
       } else {
-        // Use file:// URL for VTT and other supported formats
         const normalizedPath = path.normalize(filePath);
         const encodedPath = encodeURI(normalizedPath.replace(/\\/g, '/'));
         return `file:///${encodedPath}`;

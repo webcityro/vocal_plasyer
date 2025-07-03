@@ -14,24 +14,30 @@
 				<div class="file-selection-icon">
 					<i class="fas fa-film fa-4x"></i>
 				</div>
-				<h2 class="file-selection-title">No Video Loaded</h2>
-				<p class="file-selection-description">Select a video file to start playing</p>
+				<h2 class="file-selection-title">Vocal Player</h2>
+				<p class="file-selection-description">Creat de către Andrei Vălcu pentru cei care nu pot sau nu vor să citească subtitrarea.</p>
 
 				<div class="file-selection-buttons">
-					<button class="file-btn primary" @click="selectVideoFile">
+					<button v-if="!selectedVideoPath" class="file-btn primary" @click="selectVideoFile">
 						<i class="fas fa-file-video"></i>
-						Select Video File
+						Selectează fișierul video
 					</button>
 
-					<button class="file-btn secondary" @click="selectSubtitleFile">
-						<i class="fas fa-closed-captioning"></i>
-						Select Subtitle File
-					</button>
+					<template v-else-if="subtitlesEnabled">
+						<button class="file-btn secondary" @click="selectSubtitleFile">
+							<i class="fas fa-closed-captioning"></i>
+							Selectează fișierul de subtitrare
+						</button>
+						<button class="file-btn secondary" @click="subtitlesEnabled = false">
+							<i class="fas fa-eye-slash"></i>
+							Fără subtitrare
+						</button>
+					</template>
 				</div>
 			</div>
 		</div>
 
-		<div class="video-overlay" v-if="isPlayerReady && !state.isPlaying" @click="play">
+		<div class="video-overlay" v-if="isPlayerReady && !isPlaying" @click="play">
 			<div class="play-button">
 				<i class="fas fa-play fa-2x"></i>
 			</div>
@@ -43,16 +49,16 @@
 					<div class="progress-filled" :style="{ width: progressPercentage + '%' }"></div>
 				</div>
 				<div class="time-display">
-					<span>{{ formatTime(state.currentTime) }}</span>
+					<span>{{ formatTime(currentTime) }}</span>
 					<span>/</span>
-					<span>{{ formatTime(state.duration) }}</span>
+					<span>{{ formatTime(duration) }}</span>
 				</div>
 			</div>
 
 			<div class="controls-main">
 				<div class="controls-left">
 					<button class="control-btn" @click="togglePlayPause">
-						<i v-if="state.isPlaying" class="fas fa-pause"></i>
+						<i v-if="isPlaying" class="fas fa-pause"></i>
 						<i v-else class="fas fa-play"></i>
 					</button>
 
@@ -66,28 +72,27 @@
 				</div>
 
 				<div class="controls-right">
-					<button class="control-btn" @click="selectSubtitleFile">
+					<button class="control-btn subtitle-btn" :class="{ 'enabled': subtitlesEnabled, 'disabled': !subtitlesEnabled }" @click="toggleSubtitles" v-if="selectedSubtitlePath">
 						<i class="fas fa-closed-captioning"></i>
-					</button>
-
-					<button class="control-btn subtitle-btn" :class="{ 'enabled': state.subtitlesEnabled, 'disabled': !state.subtitlesEnabled }" @click="toggleSubtitles" v-if="state.selectedSubtitlePath">
-						<i class="fas fa-closed-captioning"></i>
-					</button>
-
-					<button class="control-btn" @click="checkSubtitles" v-if="state.selectedSubtitlePath">
-						<i class="fas fa-bug"></i>
 					</button>
 
 					<div class="volume-slider">
 						<input
 							type="range"
-							v-model="state.volume"
+							v-model="volume"
 							min="0"
 							max="100"
 							class="volume-range"
 							@input="updateVolume"
 						>
 					</div>
+					<button class="control-btn" @click="toggleMute">
+						<i :class="['fas', {
+							'fa-volume-mute': videoRef.muted,
+							'fa-volume-down': videoRef.volume > 0 && videoRef.volume < 1,
+							'fa-volume-up': videoRef.volume === 1
+						}]"></i>
+					</button>
 
 					<button class="control-btn" @click="toggleFullscreen">
 						<i class="fas fa-expand"></i>
@@ -99,42 +104,32 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed, onMounted, } from 'vue'
+import {computed, onMounted, ref} from 'vue'
 
 const videoRef = ref(null)
 
-const state = reactive({
-	selectedVideoPath: null,
-	selectedSubtitlePath: null,
-	isPlaying: false,
-	isMuted: false,
-	currentTime: 0,
-	duration: 0,
-	volume: 100,
-	isPlayerReady: false,
-	subtitlesEnabled: true
-});
+const selectedVideoPath = ref(null)
+const selectedSubtitlePath = ref(null)
+const isPlaying = ref(false)
+const currentTime = ref(0)
+const duration = ref(0)
+const volume = ref(100)
+const subtitlesEnabled = ref(true)
 
 onMounted(() => {
-	// Initialize volume
 	if (videoRef.value) {
-		videoRef.value.volume = state.volume / 100
+		videoRef.value.volume = volume.value / 100;
 	}
-})
-
-const isPlayerReady = computed(() => {
-	return state.selectedVideoPath !== null;
 });
 
-const progressPercentage = computed(() => {
-	return state.duration > 0 ? (state.currentTime / state.duration) * 100 : 0
-})
+const isPlayerReady = computed(() => selectedVideoPath.value !== null && (selectedSubtitlePath.value !== null || !subtitlesEnabled.value));
+const progressPercentage = computed(() => duration.value > 0 ? (currentTime.value / duration.value) * 100 : 0)
 
 const formatTime = (seconds) => {
-	const mins = Math.floor(seconds / 60)
-	const secs = Math.floor(seconds % 60)
-	return `${mins}:${secs.toString().padStart(2, '0')}`
-}
+	const mins = Math.floor(seconds / 60);
+	const secs = Math.floor(seconds % 60);
+	return `${mins}:${secs.toString().padStart(2, '0')}`;
+};
 
 const selectVideoFile = async () => {
 	try {
@@ -145,15 +140,15 @@ const selectVideoFile = async () => {
 				{name: 'All Files', extensions: ['*']}
 			],
 			properties: ['openFile']
-		})
+		});
 
 		if (!result.canceled && result.filePaths.length > 0) {
-			handleVideoFileSelected(result.filePaths[0])
+			await handleVideoFileSelected(result.filePaths[0]);
 		}
 	} catch (error) {
-		console.error('Error selecting video file:', error)
+		console.error('Error selecting video file:', error);
 	}
-}
+};
 
 const selectSubtitleFile = async () => {
 	try {
@@ -164,267 +159,221 @@ const selectSubtitleFile = async () => {
 				{name: 'All Files', extensions: ['*']}
 			],
 			properties: ['openFile']
-		})
+		});
 
 		if (!result.canceled && result.filePaths.length > 0) {
-			handleSubtitleFileSelected(result.filePaths[0])
+			await handleSubtitleFileSelected(result.filePaths[0]);
 		}
 	} catch (error) {
-		console.error('Error selecting subtitle file:', error)
+		console.error('Error selecting subtitle file:', error);
 	}
-}
+};
 
 const handleVideoFileSelected = async (filePath) => {
-	state.selectedVideoPath = filePath
-	await loadVideo(filePath)
-}
+	selectedVideoPath.value = filePath;
+	await loadVideo(filePath);
+};
 
 const handleSubtitleFileSelected = async (filePath) => {
-	state.selectedSubtitlePath = filePath
-	await loadSubtitle(filePath)
-}
+	selectedSubtitlePath.value = filePath;
+	await loadSubtitle(filePath);
+};
 
 const loadVideo = async (filePath) => {
 	try {
-		console.log('Loading video:', filePath)
-		const videoUrl = await window.electronAPI.loadVideoFile(filePath)
-		console.log('Received video URL:', videoUrl)
+		console.log('Loading video:', filePath);
+		const videoUrl = await window.electronAPI.loadVideoFile(filePath);
+		console.log('Received video URL:', videoUrl);
 		if (videoRef.value) {
-			videoRef.value.src = videoUrl
-			console.log('Set video src to:', videoUrl)
+			videoRef.value.src = videoUrl;
+			console.log('Set video src to:', videoUrl);
 		}
 	} catch (error) {
-		console.error('Error loading video:', error)
+		console.error('Error loading video:', error);
 	}
-}
+};
 
 const loadSubtitle = async (filePath) => {
 	try {
-		console.log('Loading subtitle:', filePath)
-		const subtitleUrl = await window.electronAPI.loadSubtitleFile(filePath)
-		console.log('Received subtitle URL:', subtitleUrl)
+		console.log('Loading subtitle:', filePath);
+		const subtitleUrl = await window.electronAPI.loadSubtitleFile(filePath);
+		console.log('Received subtitle URL:', subtitleUrl);
 
 		if (videoRef.value) {
-			// Remove existing tracks
-			const existingTracks = videoRef.value.querySelectorAll('track')
-			existingTracks.forEach(track => track.remove())
+			videoRef.value.querySelectorAll('track').forEach(track => track.remove());
 
-			// Create track element for subtitle
 			const track = document.createElement('track')
-			track.kind = 'subtitles'
-			track.src = subtitleUrl
+			track.kind = 'subtitles';
+			track.src = subtitleUrl;
 
-			// Determine language and label based on file extension
-			// const fileExt = filePath.toLowerCase().split('.').pop()
-			let srclang = 'ro'
-			let label = 'Romanian'
+			let srclang = 'ro';
+			let label = 'Romanian';
 
-			/*if (fileExt === 'srt' || fileExt === 'vtt') {
-				// Try to detect language from filename
-				if (filePath.toLowerCase().includes('ro') || filePath.toLowerCase().includes('romanian')) {
-					srclang = 'ro'
-					label = 'Romanian'
-				} else if (filePath.toLowerCase().includes('es') || filePath.toLowerCase().includes('spanish')) {
-					srclang = 'es'
-					label = 'Spanish'
-				} else if (filePath.toLowerCase().includes('fr') || filePath.toLowerCase().includes('french')) {
-					srclang = 'fr'
-					label = 'French'
-				}
-			}*/
+			track.srclang = srclang;
+			track.label = label;
+			track.default = true;
 
-			track.srclang = srclang
-			track.label = label
-			track.default = true
+			videoRef.value.appendChild(track);
+			console.log('Subtitle track added:', { srclang, label, src: subtitleUrl });
 
-			videoRef.value.appendChild(track)
-			console.log('Subtitle track added:', { srclang, label, src: subtitleUrl })
-
-			// Wait a bit for the track to be loaded, then enable subtitles
 			setTimeout(() => {
 				if (videoRef.value && videoRef.value.textTracks.length > 0) {
-					const textTrack = videoRef.value.textTracks[0]
-					console.log('Text track found:', textTrack)
-					textTrack.mode = 'showing'
-					state.subtitlesEnabled = true
-					console.log('Subtitles enabled, mode:', textTrack.mode)
+					const textTrack = videoRef.value.textTracks[0];
+					console.log('Text track found:', textTrack);
+					textTrack.mode = 'showing';
+					subtitlesEnabled.value = true;
+					console.log('Subtitles enabled, mode:', textTrack.mode);
 
-					// Add cuechange event listener for TTS
 					textTrack.oncuechange = onCueChange;
 				} else {
-					console.warn('No text tracks found after adding subtitle')
+					console.warn('No text tracks found after adding subtitle');
 				}
-			}, 100)
+			}, 100);
 		}
 	} catch (error) {
-		console.error('Error loading subtitle:', error)
+		console.error('Error loading subtitle:', error);
 	}
-}
+};
 
 const play = () => {
-	if (videoRef.value) {
-		videoRef.value.play()
-	}
-}
+	videoRef.value?.play();
+};
 
 const pause = () => {
-	if (videoRef.value) {
-		videoRef.value.pause()
-	}
-}
+	videoRef.value?.pause();
+};
 
 const togglePlayPause = () => {
-	if (state.isPlaying) {
-		pause()
+	if (isPlaying.value) {
+		pause();
 	} else {
-		play()
+		play();
 	}
-}
+};
 
 const rewind = () => {
 	if (videoRef.value) {
-		videoRef.value.currentTime = Math.max(0, videoRef.value.currentTime - 10)
+		videoRef.value.currentTime = Math.max(0, videoRef.value.currentTime - 10);
 	}
-}
+};
 
 const fastForward = () => {
 	if (videoRef.value) {
 		videoRef.value.currentTime = Math.min(videoRef.value.duration, videoRef.value.currentTime + 10)
 	}
-}
+};
 
-const seek = (event) => {
+const seek = ({ clientX, currentTarget }) => {
 	if (videoRef.value) {
-		const rect = event.currentTarget.getBoundingClientRect()
-		const clickX = event.clientX - rect.left
-		const percentage = clickX / rect.width
-		videoRef.value.currentTime = percentage * videoRef.value.duration
+		const { left, width } = currentTarget.getBoundingClientRect();
+		videoRef.value.currentTime = ((clientX - left) / width) * videoRef.value.duration;
 	}
-}
+};
 
 const toggleMute = () => {
 	if (videoRef.value) {
-		videoRef.value.muted = !videoRef.value.muted
-		state.isMuted = videoRef.value.muted
+		videoRef.value.muted = !videoRef.value.muted;
 	}
 }
 
 const updateVolume = () => {
 	if (videoRef.value) {
-		videoRef.value.volume = state.volume / 100
-		state.isMuted = state.volume === 0
+		videoRef.value.volume = volume.value / 100;
 	}
-}
+};
 
 const toggleSubtitles = () => {
 	if (videoRef.value && videoRef.value.textTracks.length > 0) {
-		const track = videoRef.value.textTracks[0]
-		if (track.mode === 'showing') {
-			track.mode = 'hidden'
-			state.subtitlesEnabled = false
-		} else {
-			track.mode = 'showing'
-			state.subtitlesEnabled = true
-		}
-		console.log('Subtitle toggle - mode:', track.mode, 'enabled:', state.subtitlesEnabled)
-	} else {
-		console.warn('No text tracks available for toggle')
-	}
-}
+		const track = videoRef.value.textTracks[0];
 
-const checkSubtitles = () => {
-	if (videoRef.value) {
-		console.log('Checking subtitles...')
-		console.log('Text tracks count:', videoRef.value.textTracks.length)
-		for (let i = 0; i < videoRef.value.textTracks.length; i++) {
-			const track = videoRef.value.textTracks[i]
-			console.log(`Track ${i}:`, {
-				kind: track.kind,
-				label: track.label,
-				srclang: track.srclang,
-				mode: track.mode,
-				readyState: track.readyState
-			})
+		if (track.mode === 'showing') {
+			track.mode = 'hidden';
+			subtitlesEnabled.value = false;
+		} else {
+			track.mode = 'showing';
+			subtitlesEnabled.value = true;
 		}
+		console.log('Subtitle toggle - mode:', track.mode, 'enabled:', subtitlesEnabled.value);
+	} else {
+		console.warn('No text tracks available for toggle');
 	}
-}
+};
 
 const toggleFullscreen = () => {
 	if (videoRef.value) {
 		if (document.fullscreenElement) {
-			document.exitFullscreen()
+			document.exitFullscreen();
 		} else {
-			videoRef.value.requestFullscreen()
+			videoRef.value.requestFullscreen();
 		}
 	}
-}
+};
 
 // Video event handlers
 const onVideoLoaded = () => {
-	console.log('Video metadata loaded')
+	console.log('Video metadata loaded');
 	if (videoRef.value) {
-		state.duration = videoRef.value.duration
-		console.log('Video duration:', state.duration)
-		console.log('Text tracks available:', videoRef.value.textTracks.length)
+		duration.value = videoRef.value.duration;
+		console.log('Video duration:', duration.value);
+		console.log('Text tracks available:', videoRef.value.textTracks.length);
 
-		// If we have a subtitle path but no text tracks, try to load subtitles again
-		if (state.selectedSubtitlePath && videoRef.value.textTracks.length === 0) {
-			console.log('Video loaded but no text tracks found, reloading subtitle...')
-			loadSubtitle(state.selectedSubtitlePath)
+		if (selectedSubtitlePath.value && videoRef.value.textTracks.length === 0) {
+			console.log('Video loaded but no text tracks found, reloading subtitle...');
+			loadSubtitle(selectedSubtitlePath.value);
 		}
 	}
-}
+};
 
 const onTimeUpdate = () => {
 	if (videoRef.value) {
-		state.currentTime = videoRef.value.currentTime
+		currentTime.value = videoRef.value.currentTime;
 	}
-}
+};
 
 const onVideoError = (e) => {
-	console.error('Video error:', e)
+	console.error('Video error:', e);
 	console.error('Video error details:', {
 		error: e.target.error,
 		networkState: e.target.networkState,
 		readyState: e.target.readyState,
 		src: e.target.src
-	})
-	state.isPlayerReady = false
-}
+	});
+	// No longer set state.isPlayerReady, as isPlayerReady is now a computed property
+};
 
 const onPlay = () => {
-	state.isPlaying = true
-}
+	isPlaying.value = true;
+};
 
 const onPause = () => {
-	state.isPlaying = false
-}
+	isPlaying.value = false;
+};
 
-function speakSubtitle(text) {
-	// Use Romanian voice if available
+const speakSubtitle = (text) => {
 	const synth = window.speechSynthesis;
 	const voices = synth.getVoices();
 	let roVoice = voices.find(v => v.lang.startsWith('ro'));
 	const utterance = new window.SpeechSynthesisUtterance(text);
+
 	if (roVoice) {
 		utterance.voice = roVoice;
 		utterance.lang = roVoice.lang;
 	} else {
-		utterance.lang = 'ro-RO'; // fallback
+		utterance.lang = 'ro-RO';
 	}
-	synth.cancel(); // Stop previous speech
-	synth.speak(utterance);
-}
 
-function onCueChange(event) {
+	synth.cancel();
+	synth.speak(utterance);
+};
+
+const onCueChange = event => {
 	const track = event.target;
 	const activeCues = track.activeCues;
+
 	if (activeCues && activeCues.length > 0) {
-		const text = Array.from(activeCues).map(cue => cue.text).join(' ');
-		console.log('Subtitle changed:', text);
-		speakSubtitle(text);
+		speakSubtitle(Array.from(activeCues).map(cue => cue.text).join(' '));
 	}
-}
+};
 </script>
 
 <style scoped>
