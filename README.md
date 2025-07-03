@@ -39,12 +39,11 @@ This will start both the Vite development server and Electron app concurrently.
 ### Available Scripts
 
 - `npm run dev` - Start development server with hot reload
-- `npm run dev:vite` - Start only the Vite development server
-- `npm run dev:electron` - Start only the Electron app
+- `npm run vite:build` - Build the js app
 - `npm run build` - Build for production and package with Electron
-- `npm run build:web` - Build only the web version
-- `npm run preview` - Preview the built web version
+- `npm run preview` - Preview the built
 - `npm start` - Start the Electron app (requires built files)
+- `nom run dist` - Compile the application.
 
 ## Compiling the application
 
