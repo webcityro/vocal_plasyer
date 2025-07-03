@@ -31,6 +31,11 @@ function createWindow() {
     win.loadFile(path.join(__dirname, "../renderer/index.html"));
   }
 }
+function srtToVtt(srtContent) {
+  let vtt = "WEBVTT\n\n";
+  vtt += srtContent.replace(/\r/g, "").split("\n").filter((line) => !/^\d+$/.test(line)).map((line) => line.replace(/(\d{2}):(\d{2}):(\d{2}),(\d{3})/g, "$1:$2:$3.$4")).join("\n");
+  return vtt;
+}
 ipcMain.handle("show-open-dialog", async (event, options) => {
   try {
     const result = await dialog.showOpenDialog(options);
@@ -70,9 +75,17 @@ ipcMain.handle("load-video-file", async (event, filePath) => {
 ipcMain.handle("load-subtitle-file", async (event, filePath) => {
   try {
     if (fs.existsSync(filePath)) {
-      const normalizedPath = path.normalize(filePath);
-      const encodedPath = encodeURI(normalizedPath.replace(/\\/g, "/"));
-      return `file:///${encodedPath}`;
+      const ext = path.extname(filePath).toLowerCase();
+      if (ext === ".srt") {
+        const srtContent = fs.readFileSync(filePath, "utf8");
+        const vttContent = srtToVtt(srtContent);
+        const dataUrl = "data:text/vtt;charset=utf-8," + encodeURIComponent(vttContent);
+        return dataUrl;
+      } else {
+        const normalizedPath = path.normalize(filePath);
+        const encodedPath = encodeURI(normalizedPath.replace(/\\/g, "/"));
+        return `file:///${encodedPath}`;
+      }
     } else {
       throw new Error("File does not exist");
     }

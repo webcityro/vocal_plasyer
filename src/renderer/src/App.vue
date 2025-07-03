@@ -248,6 +248,9 @@ const loadSubtitle = async (filePath) => {
 					textTrack.mode = 'showing'
 					state.subtitlesEnabled = true
 					console.log('Subtitles enabled, mode:', textTrack.mode)
+
+					// Add cuechange event listener for TTS
+					textTrack.oncuechange = onCueChange;
 				} else {
 					console.warn('No text tracks found after adding subtitle')
 				}
@@ -395,6 +398,32 @@ const onPlay = () => {
 
 const onPause = () => {
 	state.isPlaying = false
+}
+
+function speakSubtitle(text) {
+	// Use Romanian voice if available
+	const synth = window.speechSynthesis;
+	const voices = synth.getVoices();
+	let roVoice = voices.find(v => v.lang.startsWith('ro'));
+	const utterance = new window.SpeechSynthesisUtterance(text);
+	if (roVoice) {
+		utterance.voice = roVoice;
+		utterance.lang = roVoice.lang;
+	} else {
+		utterance.lang = 'ro-RO'; // fallback
+	}
+	synth.cancel(); // Stop previous speech
+	synth.speak(utterance);
+}
+
+function onCueChange(event) {
+	const track = event.target;
+	const activeCues = track.activeCues;
+	if (activeCues && activeCues.length > 0) {
+		const text = Array.from(activeCues).map(cue => cue.text).join(' ');
+		console.log('Subtitle changed:', text);
+		speakSubtitle(text);
+	}
 }
 </script>
 

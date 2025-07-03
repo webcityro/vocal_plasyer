@@ -41,6 +41,19 @@ function createWindow() {
   }
 }
 
+function srtToVtt(srtContent) {
+  // Add WEBVTT header
+  let vtt = 'WEBVTT\n\n';
+  // Remove sequence numbers and convert commas to periods in timestamps
+  vtt += srtContent
+    .replace(/\r/g, '')
+    .split('\n')
+    .filter(line => !/^\d+$/.test(line))
+    .map(line => line.replace(/(\d{2}):(\d{2}):(\d{2}),(\d{3})/g, '$1:$2:$3.$4'))
+    .join('\n');
+  return vtt;
+}
+
 // Handle file dialog requests
 ipcMain.handle('show-open-dialog', async (event, options) => {
   try {
@@ -87,13 +100,20 @@ ipcMain.handle('load-video-file', async (event, filePath) => {
 
 ipcMain.handle('load-subtitle-file', async (event, filePath) => {
   try {
-    // Check if file exists
     if (fs.existsSync(filePath)) {
-      // Convert to proper file:// URL with proper encoding
-      const normalizedPath = path.normalize(filePath);
-      // Use encodeURI to properly encode the file path
-      const encodedPath = encodeURI(normalizedPath.replace(/\\/g, '/'));
-      return `file:///${encodedPath}`;
+      const ext = path.extname(filePath).toLowerCase();
+      if (ext === '.srt') {
+        // Convert SRT to VTT and serve as data URL
+        const srtContent = fs.readFileSync(filePath, 'utf8');
+        const vttContent = srtToVtt(srtContent);
+        const dataUrl = 'data:text/vtt;charset=utf-8,' + encodeURIComponent(vttContent);
+        return dataUrl;
+      } else {
+        // Use file:// URL for VTT and other supported formats
+        const normalizedPath = path.normalize(filePath);
+        const encodedPath = encodeURI(normalizedPath.replace(/\\/g, '/'));
+        return `file:///${encodedPath}`;
+      }
     } else {
       throw new Error('File does not exist');
     }
