@@ -43,7 +43,7 @@ This will start both the Vite development server and Electron app concurrently.
 - `npm run build` - Build for production and package with Electron
 - `npm run preview` - Preview the built
 - `npm start` - Start the Electron app (requires built files)
-- `nom run dist` - Compile the application.
+- `npm run dist` - Compile the application.
 
 ## Compiling the application
 
